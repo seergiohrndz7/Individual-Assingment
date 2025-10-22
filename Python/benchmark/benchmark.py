@@ -49,7 +49,7 @@ def run_experiment(n, runs):
         print(f"Run {r}: {elapsed:.6f} s | Memory used: {mem_used:.2f} MB")
         log_csv(n, r, elapsed, mem_used)
 
-        # prevent C from being optimized away by interpreter (noop read)
+        # Prevent C from being optimized away by interpreter (noop read)
         if C and C[0] and C[0][0] == float("nan"):
             print("", end="")
 

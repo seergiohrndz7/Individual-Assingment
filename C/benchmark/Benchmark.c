@@ -6,7 +6,7 @@
 #ifdef _WIN32
   #include <windows.h>
   #include <psapi.h>
-  #include <direct.h>   // _mkdir
+  #include <direct.h>   
   #define MKDIR(p) _mkdir(p)
   #define PATH_SEP '\\'
   static long get_memory_used_mb() {
@@ -37,7 +37,7 @@
   }
 #endif
 
-// ---------- production code -----------
+// ---------- Production Code -----------
 double** allocate_matrix(int n) {
     double **M = (double**)malloc(n * sizeof(double*));
     for (int i = 0; i < n; ++i) M[i] = (double*)malloc(n * sizeof(double));
@@ -63,7 +63,7 @@ void matrix_multiply(double **A, double **B, double **C, int n) {
 }
 // --------------------------------------
 
-// return seconds (double) wall-clock
+// Return seconds (double) wall-clock
 static double now_seconds() {
 #ifdef _WIN32
     LARGE_INTEGER freq, ctr;
@@ -77,7 +77,7 @@ static double now_seconds() {
 #endif
 }
 
-// create parent directory of path (simple split on last / or \)
+// Create parent directory of path (simple split on last / or \)
 static void ensure_parent_dir(const char *path) {
     size_t len = strlen(path);
     if (len == 0) return;
@@ -93,7 +93,7 @@ static void ensure_parent_dir(const char *path) {
     free(tmp);
 }
 
-// choose CSV path: env var RESULTS_CSV or ../data/results.csv
+// Choose CSV path: env var RESULTS_CSV or ../data/results.csv
 static void resolve_csv_path(char *out, size_t outsz) {
     const char *env = getenv("RESULTS_CSV");
     if (env && env[0] != '\0') {

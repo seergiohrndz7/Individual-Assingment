@@ -5,7 +5,7 @@ import java.time.format.DateTimeFormatter;
 
 public class Benchmark {
 
-    // ----- Utilidades para CSV -----
+    // ----- CSV Utilities -----
     private static Path resolveCsv() throws IOException {
         String env = System.getenv("RESULTS_CSV");
         Path p = (env != null && !env.isBlank())
@@ -34,7 +34,7 @@ public class Benchmark {
         return rt.totalMemory() - rt.freeMemory();
     }
 
-    // ----- Generación y multiplicación de matrices -----
+    // ----- Generation and multiplication of matrix -----
     private static double[][] randomMatrix(int n) {
         java.util.Random rnd = new java.util.Random();
         double[][] M = new double[n][n];
@@ -64,7 +64,7 @@ public class Benchmark {
         return C;
     }
 
-    // ----- Programa principal -----
+    // ----- Main Program -----
     public static void main(String[] args) {
         try {
             if (args.length < 2) {
@@ -106,10 +106,10 @@ public class Benchmark {
 
                 appendCsv(CSV, line);
 
-                // 🖥️ Log limpio en consola
+                // Console Log
                 System.out.printf("Run %d: %.6f s | Memory used: %.2f MB%n", r, elapsed, memUsedMB);
 
-                // Evitar que el compilador elimine la variable
+                // Avoid the compiler deleting variable
                 if (C.length == 0) System.out.print("");
             }
 
