@@ -1,99 +1,154 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
-#include <sys/time.h>
 
 #ifdef _WIN32
   #include <windows.h>
   #include <psapi.h>
-  #include <direct.h>
+  #include <direct.h>   // _mkdir
+  #define MKDIR(p) _mkdir(p)
+  #define PATH_SEP '\\'
+  static long get_memory_used_mb() {
+      PROCESS_MEMORY_COUNTERS pmc;
+      if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+          return (long)(pmc.WorkingSetSize / (1024 * 1024));
+      }
+      return 0;
+  }
 #else
+  #include <sys/time.h>
   #include <sys/stat.h>
   #include <unistd.h>
+  #define MKDIR(p) mkdir(p, 0755)
+  #define PATH_SEP '/'
+  static long get_memory_used_mb() {
+      FILE *f = fopen("/proc/self/statm", "r");
+      if (!f) return 0;
+      long total_pages, resident_pages;
+      if (fscanf(f, "%ld %ld", &total_pages, &resident_pages) != 2) {
+          fclose(f);
+          return 0;
+      }
+      fclose(f);
+      long page_size = sysconf(_SC_PAGESIZE);
+      long rss_bytes = resident_pages * page_size;
+      return rss_bytes / (1024 * 1024);
+  }
 #endif
 
-#include "../src/matrix_mult.c"
-
-// ---------------- Helper functions ---------------- //
-
-static void fill_random(double **M, int n) {
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
+// ---------- production code -----------
+double** allocate_matrix(int n) {
+    double **M = (double**)malloc(n * sizeof(double*));
+    for (int i = 0; i < n; ++i) M[i] = (double*)malloc(n * sizeof(double));
+    return M;
+}
+void free_matrix(double **M, int n) {
+    for (int i = 0; i < n; ++i) free(M[i]);
+    free(M);
+}
+void fill_random(double **M, int n) {
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
             M[i][j] = (double)rand() / RAND_MAX;
 }
-
-static double wall_time() {
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    return t.tv_sec + t.tv_usec * 1e-6;
+void matrix_multiply(double **A, double **B, double **C, int n) {
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            double s = 0.0;
+            for (int k = 0; k < n; ++k) s += A[i][k] * B[k][j];
+            C[i][j] = s;
+        }
+    }
 }
+// --------------------------------------
 
-static long get_memory_used_mb() {
+// return seconds (double) wall-clock
+static double now_seconds() {
 #ifdef _WIN32
-    PROCESS_MEMORY_COUNTERS pmc;
-    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-        return (long)(pmc.WorkingSetSize / (1024 * 1024));
-    }
-    return 0;
+    LARGE_INTEGER freq, ctr;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&ctr);
+    return (double)ctr.QuadPart / (double)freq.QuadPart;
 #else
-    FILE *f = fopen("/proc/self/statm", "r");
-    if (!f) return 0;
-    long total_pages, resident_pages;
-    if (fscanf(f, "%ld %ld", &total_pages, &resident_pages) != 2) {
-        fclose(f);
-        return 0;
-    }
-    fclose(f);
-    long page_size = sysconf(_SC_PAGESIZE);
-    long rss_bytes = resident_pages * page_size;
-    return rss_bytes / (1024 * 1024);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec + tv.tv_usec * 1e-6;
 #endif
 }
 
+// create parent directory of path (simple split on last / or \)
+static void ensure_parent_dir(const char *path) {
+    size_t len = strlen(path);
+    if (len == 0) return;
+    char *tmp = (char*)malloc(len + 1);
+    strcpy(tmp, path);
+    for (int i = (int)len - 1; i >= 0; --i) {
+        if (tmp[i] == '/' || tmp[i] == '\\') {
+            tmp[i] = '\0';
+            MKDIR(tmp); // ignore errors if exists
+            break;
+        }
+    }
+    free(tmp);
+}
+
+// choose CSV path: env var RESULTS_CSV or ../data/results.csv
+static void resolve_csv_path(char *out, size_t outsz) {
+    const char *env = getenv("RESULTS_CSV");
+    if (env && env[0] != '\0') {
+        snprintf(out, outsz, "%s", env);
+        return;
+    }
+    // default relative to running from C/ (NOT from build/)
+    snprintf(out, outsz, "..%cdata%cresults.csv", PATH_SEP, PATH_SEP);
+}
+
+// ensure file exists and has header
 static void ensure_csv(const char *path) {
-#ifdef _WIN32
-    _mkdir("..\\data");
-#else
-    mkdir("../data", 0755);
-#endif
-    FILE *check = fopen(path, "r");
-    if (check) { fclose(check); return; }
-
-    FILE *f = fopen(path, "w");
-    if (!f) return;
+    ensure_parent_dir(path);
+    FILE *f = fopen(path, "r");
+    if (f) { fclose(f); return; }
+    f = fopen(path, "w");
+    if (!f) {
+        perror("[ERROR] fopen header");
+        fprintf(stderr, "Tried path: %s\n", path);
+        return;
+    }
     fprintf(f, "language,matrix_size,run_index,elapsed_sec,memory_used_mb,timestamp_iso\n");
     fclose(f);
 }
 
-static void log_csv(const char *path, int n, int run_index, double elapsed, long mem_used) {
+static void append_csv(const char *path, int n, int run_index, double elapsed, long mem_used_mb) {
     FILE *f = fopen(path, "a");
-    if (!f) return;
-
-    time_t now = time(NULL);
-    struct tm *tm = localtime(&now);
-    char buf[32];
-    strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", tm);
-
-    fprintf(f, "C,%d,%d,%.6f,%ld,%s\n", n, run_index, elapsed, mem_used, buf);
+    if (!f) {
+        perror("[ERROR] fopen append");
+        fprintf(stderr, "Tried path: %s\n", path);
+        return;
+    }
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+    char iso[32];
+    strftime(iso, sizeof(iso), "%Y-%m-%dT%H:%M:%S", tm);
+    fprintf(f, "C,%d,%d,%.6f,%ld,%s\n", n, run_index, elapsed, mem_used_mb, iso);
     fclose(f);
 }
-
-// ---------------- Main benchmark ---------------- //
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
         printf("Usage: %s <matrix_size> <num_runs>\n", argv[0]);
         return 1;
     }
-
     int n = atoi(argv[1]);
     int runs = atoi(argv[2]);
-    const char *RESULTS_PATH = "../data/results.csv";
+    srand((unsigned)time(NULL));
 
-    ensure_csv(RESULTS_PATH);
+    char csv_path[1024];
+    resolve_csv_path(csv_path, sizeof(csv_path));
+    ensure_csv(csv_path);
+    printf("[INFO] CSV path: %s\n", csv_path);
 
-    srand((unsigned int)time(NULL));
-
+    // build matrices once (como en Java/Python)
     double **A = allocate_matrix(n);
     double **B = allocate_matrix(n);
     double **C = allocate_matrix(n);
@@ -102,24 +157,23 @@ int main(int argc, char *argv[]) {
 
     printf("=========== C BENCHMARK ===========\n");
     printf("Matrix size: %dx%d | Runs: %d\n", n, n, runs);
+    printf("-----------------------------------\n");
 
     double total = 0.0;
-    for (int r = 0; r < runs; r++) {
+    for (int r = 1; r <= runs; ++r) {
         long mem_before = get_memory_used_mb();
-        double start = wall_time();
-
+        double t0 = now_seconds();
         matrix_multiply(A, B, C, n);
-
-        double end = wall_time();
+        double t1 = now_seconds();
         long mem_after = get_memory_used_mb();
 
-        double elapsed = end - start;
+        double elapsed = t1 - t0;
         long mem_used = mem_after - mem_before;
         if (mem_used < 0) mem_used = 0;
 
         total += elapsed;
-        printf("Run %d: %.6f s | Memory used: %ld MB\n", r + 1, elapsed, mem_used);
-        log_csv(RESULTS_PATH, n, r + 1, elapsed, mem_used);
+        append_csv(csv_path, n, r, elapsed, mem_used);
+        printf("Run %d: %.6f s | Memory used: %ld MB\n", r, elapsed, mem_used);
     }
 
     printf("-----------------------------------\n");
@@ -129,6 +183,5 @@ int main(int argc, char *argv[]) {
     free_matrix(A, n);
     free_matrix(B, n);
     free_matrix(C, n);
-
     return 0;
 }
