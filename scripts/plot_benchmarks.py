@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 plot_benchmarks.py
 Reads a results.csv with columns:
@@ -32,7 +31,7 @@ def load_data(csv_path: Path) -> pd.DataFrame:
     if missing:
         raise ValueError(f"[ERROR] Missing columns in CSV: {sorted(missing)}")
 
-    # tipos
+    # types
     df["language"] = df["language"].astype(str)
     df["matrix_size"] = df["matrix_size"].astype(int)
     df["run_index"] = df["run_index"].astype(int)
@@ -104,11 +103,11 @@ def fig_speedup_vs_python(summary: pd.DataFrame, outdir: Path, show: bool = Fals
     merged["speedup_vs_python"] = merged["python_avg"] / merged["avg_time_s"]
     speedup = merged[merged["language"] != "Python"].copy()
 
-    # guarda tabla
+    # saves table
     tbl_path = outdir / "speedup_vs_python.csv"
     speedup[["language", "matrix_size", "speedup_vs_python"]].to_csv(tbl_path, index=False)
 
-    # figura
+    # figure
     p = outdir / "speedup_vs_python.png"
     plt.figure()
     for lang, g in speedup.groupby("language"):
@@ -135,7 +134,7 @@ def fig_boxplots(df: pd.DataFrame, outdir: Path, show: bool = False) -> list[Pat
             continue
         langs = sorted(sub["language"].unique().tolist())
 
-        # Tiempo
+        # time
         p_time = outdir / f"box_time_n{n}.png"
         plt.figure()
         data_t = [sub[sub["language"] == lg]["elapsed_sec"].values for lg in langs]
@@ -149,7 +148,7 @@ def fig_boxplots(df: pd.DataFrame, outdir: Path, show: bool = False) -> list[Pat
         plt.close()
         paths.append(p_time)
 
-        # Memoria
+        # memory
         p_mem = outdir / f"box_mem_n{n}.png"
         plt.figure()
         data_m = [sub[sub["language"] == lg]["memory_used_mb"].values for lg in langs]
