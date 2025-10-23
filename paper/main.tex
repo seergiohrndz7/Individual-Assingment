@@ -54,65 +54,7 @@ Fill in CPU model, cores/threads, RAM, OS version, and toolchain versions (GCC/M
   \caption{Speedup relative to Python (higher is better).}
 \end{figure}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_time_n64.png}}
-  \caption{{Elapsed time distribution by language for $n=64$ (boxplots).}}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_mem_n64.png}}
-  \caption{{Memory distribution by language for $n=64$ (boxplots).}}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_time_n128.png}}
-  \caption{{Elapsed time distribution by language for $n=128$ (boxplots).}}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_mem_n128.png}}
-  \caption{{Memory distribution by language for $n=128$ (boxplots).}}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_time_n256.png}}
-  \caption{{Elapsed time distribution by language for $n=256$ (boxplots).}}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_mem_n256.png}}
-  \caption{{Memory distribution by language for $n=256$ (boxplots).}}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_time_n512.png}}
-  \caption{{Elapsed time distribution by language for $n=512$ (boxplots).}}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_mem_n512.png}}
-  \caption{{Memory distribution by language for $n=512$ (boxplots).}}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_time_n1024.png}}
-  \caption{{Elapsed time distribution by language for $n=1024$ (boxplots).}}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=.75\linewidth]{{box_mem_n1024.png}}
-  \caption{{Memory distribution by language for $n=1024$ (boxplots).}}
-\end{figure}
+\input{figures_bars_boxplots.tex}
 
 \begin{table}[H]
 \centering
@@ -153,7 +95,6 @@ The naive $O(n^3)$ kernel scales cubically across all languages. Results reflect
 \begin{itemize}
   \item GitHub repository: \url{https://github.com/seergiohrndz7/Individual-Assingment.git}.
   \item Unified CSV: \texttt{data/results.csv}.
-  \item Scripts: \texttt{scripts/run\_all.bat} and \texttt{scripts/summarize\_results.py}.
 \end{itemize}
 
 \bibliographystyle{plain}
